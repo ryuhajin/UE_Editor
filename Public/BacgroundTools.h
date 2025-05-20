@@ -3,6 +3,9 @@
 #pragma once
 
 #include "Modules/ModuleManager.h"
+#include "AssetToolsModule.h"
+#include "AssetViewUtils.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 class FBacgroundToolsModule : public IModuleInterface
 {
