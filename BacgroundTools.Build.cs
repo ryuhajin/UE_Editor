@@ -18,7 +18,7 @@ public class BacgroundTools : ModuleRules
 		
 		PrivateIncludePaths.AddRange(
 			new string[] {
-                "AssetTools"
+				"AssetTools"
                 //System.IO.Path.GetFullPath(Target.RelativeEnginePath) + "/Source/Editor/Blutility/Private"
 				// ... add other private include paths required here ...
 			}
@@ -28,12 +28,11 @@ public class BacgroundTools : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core",
+                "Core",
 				"Blutility",
-				//"EditorSubsystem",
-				//"MainFrame",
-                "EditorScriptingUtilities",
-                "AssetRegistry"
+				"EditorScriptingUtilities",
+				"UMG",
+				"Niagara"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
