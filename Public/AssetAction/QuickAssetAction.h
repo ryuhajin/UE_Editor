@@ -36,6 +36,11 @@ public:
 
 	UFUNCTION(CallInEditor)
 	void AddPrefixes();
+	
+
+	UFUNCTION(CallInEditor)
+	void RemoveUnusedAssets();
+
 
 private:
 	TMap<UClass*, FString> PrefixMap =
@@ -55,4 +60,6 @@ private:
 		{UNiagaraSystem::StaticClass(), TEXT("NS_")},
 		{UNiagaraEmitter::StaticClass(), TEXT("NE_")}
 	};
+
+	void FixUpRedirectors();
 };
