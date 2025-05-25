@@ -96,6 +96,8 @@ void UQuickAssetAction::RemoveUnusedAssets()
 	TArray<FAssetData> SelectedAssetsDatas = UEditorUtilityLibrary::GetSelectedAssetData();
 	TArray<FAssetData> UnusedAssetsData;
 
+	FixUpRedirectors();
+
 	for (const FAssetData& SelectedAssetsData : SelectedAssetsDatas)
 	{
 		TArray<FString> AssetRefrencers =
@@ -119,6 +121,7 @@ void UQuickAssetAction::RemoveUnusedAssets()
 		return;
 
 	ShowNotifyInfo(TEXT("Successfully deleted " + FString::FromInt(NumOfAssetsDeleted) + TEXT(" unused assets")));
+
 }
 
 void UQuickAssetAction::FixUpRedirectors()

@@ -4,9 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "AssetActionUtility.h"
-//#include "AssetToolsModule.h"
-//#include "AssetViewUtils.h"
-//#include "AssetRegistry/AssetRegistryModule.h"
 
 // for PrefixMap
 #include "Materials/Material.h"
