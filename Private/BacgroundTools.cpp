@@ -2,6 +2,9 @@
 
 #include "BacgroundTools.h"
 #include "ContentBrowserModule.h"
+#include "EditorAssetLibrary.h"
+#include "ObjectTools.h"
+#include "Debug.h"
 
 #define LOCTEXT_NAMESPACE "FBacgroundToolsModule"
 
@@ -31,8 +34,6 @@ void FBacgroundToolsModule::InitCBMenuExtention()
 		CreateRaw(this, &FBacgroundToolsModule::CustomCBMenuExtender));
 }
 
-#pragma endregion
-
 TSharedRef<FExtender> FBacgroundToolsModule::CustomCBMenuExtender(const TArray<FString>& SelectedPaths)
 {
 	TSharedRef<FExtender> MenuExtender(new FExtender());
@@ -44,6 +45,8 @@ TSharedRef<FExtender> FBacgroundToolsModule::CustomCBMenuExtender(const TArray<F
 			EExtensionHook::After,
 			TSharedPtr<FUICommandList>(),
 			FMenuExtensionDelegate::CreateRaw(this, &FBacgroundToolsModule::AddCBMenuEntry));
+
+		SelectedFolderPaths = SelectedPaths;
 	}
 
 	return  MenuExtender;
@@ -63,7 +66,65 @@ void FBacgroundToolsModule::AddCBMenuEntry(FMenuBuilder& MenuBuilder)
 
 void FBacgroundToolsModule::OnDeleteUnsuedAssetButtonClicked()
 {
+	if (SelectedFolderPaths.Num() > 1)
+	{
+		Debug::ShowMsgDialog(EAppMsgType::Ok, TEXT("You can only do this to one folder"));
+		return;
+	}
+
+	/*Debug::PrintMessage(TEXT("Currently selected folder: ") + SelectedFolderPaths[0], FColor::Green);*/
+
+	TArray<FString> AssetsPathNames = UEditorAssetLibrary::ListAssets(SelectedFolderPaths[0]);
+
+	if (AssetsPathNames.Num() == 0)
+	{
+		Debug::ShowMsgDialog(EAppMsgType::Ok, TEXT("No asset found under selected folder"));
+		return;
+	}
+
+	EAppReturnType::Type ConfirmResult =
+		Debug::ShowMsgDialog(
+			EAppMsgType::YesNo,
+			TEXT("A total of ") + FString::FromInt(AssetsPathNames.Num()) +
+			TEXT(" found.\n Would you like to proceed?")
+		);
+
+	if (ConfirmResult == EAppReturnType::No) return;
+
+	TArray<FAssetData> UnusedAssetsDataArray;
+
+	for (const FString& AssetPathName : AssetsPathNames)
+	{
+		if (AssetPathName.Contains(TEXT("Developers")) || AssetPathName.Contains(TEXT("Collections")))
+			continue;
+		if (!UEditorAssetLibrary::DoesAssetExist(AssetPathName))
+			continue;
+
+		TArray<FString> AssetReferancers =
+			UEditorAssetLibrary::FindPackageReferencersForAsset(AssetPathName);
+
+		if (AssetReferancers.Num() == 0)
+		{
+			const FAssetData UnusedAssetData = UEditorAssetLibrary::FindAssetData(AssetPathName);
+			UnusedAssetsDataArray.Add(UnusedAssetData);
+		}
+		else
+		{
+			Debug::PrintMessage(TEXT("Currently selected folder: ") + AssetReferancers[0], FColor::Green);
+		}
+	}
+
+	if (UnusedAssetsDataArray.Num() > 0)
+	{
+		ObjectTools::DeleteAssets(UnusedAssetsDataArray);
+	}
+	else
+	{
+		Debug::ShowMsgDialog(EAppMsgType::Ok, TEXT("No unused asset found under selected folder"));
+	}
 }
+
+#pragma endregion
 
 void FBacgroundToolsModule::ShutdownModule()
 {

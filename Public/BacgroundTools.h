@@ -21,6 +21,8 @@ private:
 
 	void InitCBMenuExtention();
 
+	TArray<FString> SelectedFolderPaths;
+
 	TSharedRef<FExtender> CustomCBMenuExtender(const TArray<FString>& SelectedPaths);
 
 	void AddCBMenuEntry(FMenuBuilder& MenuBuilder);
