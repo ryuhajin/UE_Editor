@@ -5,6 +5,9 @@
 #include "EditorAssetLibrary.h"
 #include "ObjectTools.h"
 #include "Debug.h"
+#include "AssetToolsModule.h"
+#include "AssetViewUtils.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #define LOCTEXT_NAMESPACE "FBacgroundToolsModule"
 
@@ -57,11 +60,44 @@ void FBacgroundToolsModule::AddCBMenuEntry(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.AddMenuEntry
 	(
-		FText::FromString(TEXT("Delete Unused Assets")),
-		FText::FromString(TEXT("Safely delete all unused assets under folder")),
+		FText::FromString(TEXT("Delete Unused Assets")), // title
+		FText::FromString(TEXT("Safely delete all unused assets under folder")), // tooltip
 		FSlateIcon(),
 		FExecuteAction::CreateRaw(this, &FBacgroundToolsModule::OnDeleteUnsuedAssetButtonClicked)
 	);
+
+	MenuBuilder.AddMenuEntry
+	(
+		FText::FromString(TEXT("Delete Empty Folders")), // title
+		FText::FromString(TEXT("Safely delete all empty folders")), // tooltip
+		FSlateIcon(),
+		FExecuteAction::CreateRaw(this, &FBacgroundToolsModule::OnDeleteEmptyFoldersButtonClicked)
+	);
+}
+
+bool FBacgroundToolsModule::FolderHasAnyAssets(const FString& FolderPath)
+{
+	Debug::PrintLog(TEXT("Folder ") + FolderPath);
+
+	if (UEditorAssetLibrary::DoesDirectoryHaveAssets(FolderPath))
+	{
+		Debug::PrintLog(TEXT("HaveAssets ") + FolderPath);
+		return (true);
+	}
+
+
+	TArray<FString> MapFiles;
+	const FString PhysicalPath = FPackageName::LongPackageNameToFilename(FolderPath);
+	IFileManager::Get().FindFilesRecursive(MapFiles, *PhysicalPath, TEXT("*.umap"), true, false);
+
+	if (MapFiles.Num() > 0)
+	{
+		Debug::PrintLog(TEXT("Mapfiles ") + FolderPath);
+		return (true);
+	}
+
+	Debug::PrintLog(TEXT("*** False ") + FolderPath);
+	return (false);
 }
 
 void FBacgroundToolsModule::OnDeleteUnsuedAssetButtonClicked()
@@ -82,14 +118,17 @@ void FBacgroundToolsModule::OnDeleteUnsuedAssetButtonClicked()
 		return;
 	}
 
+
 	EAppReturnType::Type ConfirmResult =
 		Debug::ShowMsgDialog(
 			EAppMsgType::YesNo,
 			TEXT("A total of ") + FString::FromInt(AssetsPathNames.Num()) +
-			TEXT(" found.\n Would you like to proceed?")
+			TEXT(" assets need to be checked.\n Would you like to proceed?")
 		);
 
 	if (ConfirmResult == EAppReturnType::No) return;
+
+	FixUpRedirectors();
 
 	TArray<FAssetData> UnusedAssetsDataArray;
 
@@ -108,10 +147,6 @@ void FBacgroundToolsModule::OnDeleteUnsuedAssetButtonClicked()
 			const FAssetData UnusedAssetData = UEditorAssetLibrary::FindAssetData(AssetPathName);
 			UnusedAssetsDataArray.Add(UnusedAssetData);
 		}
-		else
-		{
-			Debug::PrintMessage(TEXT("Currently selected folder: ") + AssetReferancers[0], FColor::Green);
-		}
 	}
 
 	if (UnusedAssetsDataArray.Num() > 0)
@@ -123,6 +158,109 @@ void FBacgroundToolsModule::OnDeleteUnsuedAssetButtonClicked()
 		Debug::ShowMsgDialog(EAppMsgType::Ok, TEXT("No unused asset found under selected folder"));
 	}
 }
+
+void FBacgroundToolsModule::OnDeleteEmptyFoldersButtonClicked()
+{
+	FixUpRedirectors();
+
+	TArray<FString> FolderPathsArray;
+	FolderPathsArray.Add(SelectedFolderPaths[0]); // 자기 자신 경로 추가
+	
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	
+	TArray<FString> SubFolders;
+	AssetRegistryModule.Get().GetSubPaths(SelectedFolderPaths[0], SubFolders, true);
+	FolderPathsArray.Append(SubFolders); // 하위 폴더까지 모두 포함
+	
+	int32 Counter = 0;
+	FString EmptyFolderPathsNames;
+	TArray<FString> EmptyFoldersPathsArray;
+
+	for (const FString& FolderPath : FolderPathsArray)
+	{
+		if (FolderPath.Contains(TEXT("Developers")) || FolderPath.Contains(TEXT("Collections")))
+			continue;
+		if (!UEditorAssetLibrary::DoesDirectoryExist(FolderPath))
+			continue;
+		if (!UEditorAssetLibrary::DoesDirectoryHaveAssets(FolderPath))
+		{
+			EmptyFolderPathsNames.Append(FolderPath);
+			EmptyFolderPathsNames.Append(TEXT("\n"));
+
+			EmptyFoldersPathsArray.Add(FolderPath);
+		}
+	}
+
+	if (EmptyFoldersPathsArray.Num() == 0)
+	{
+		Debug::ShowMsgDialog(EAppMsgType::Ok, TEXT("No empty folder found under selected folder"), false);
+		return;
+	}
+
+	EAppReturnType::Type ConfirmResult = Debug::ShowMsgDialog(EAppMsgType::OkCancel,
+		TEXT("Empty folders found in:\n") + EmptyFolderPathsNames + TEXT("\nWould you like to delete all?"), false);
+
+	if (ConfirmResult == EAppReturnType::Cancel) return;
+
+	for (const FString& EmptyFolderPath : EmptyFoldersPathsArray)
+	{
+		if (UEditorAssetLibrary::DeleteDirectory(EmptyFolderPath))
+			++Counter;
+		else
+			Debug::PrintMessage(TEXT("Failed to delete " + EmptyFolderPath), FColor::Red);
+	}
+
+	if (Counter > 0)
+	{
+		Debug::ShowNotifyInfo(TEXT("Successfully deleted ") + FString::FromInt(Counter) + TEXT("folders"));
+	}
+
+}
+
+void FBacgroundToolsModule::FixUpRedirectors()
+{
+	IAssetRegistry& AssetRegistry =
+		FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+
+	FARFilter Filter;
+	Filter.bRecursivePaths = true;
+	Filter.PackagePaths.Emplace(FName("/Game"));
+	Filter.ClassPaths.Add(UObjectRedirector::StaticClass()->GetClassPathName());
+
+	TArray<FAssetData> AssetList;
+	AssetRegistry.GetAssets(Filter, AssetList);
+
+	if (AssetList.Num() == 0) return;
+
+	TArray<FString> ObjectPaths;
+	for (const FAssetData& Asset : AssetList)
+	{
+		ObjectPaths.Add(Asset.GetObjectPathString());
+	}
+
+	TArray<UObject*> Objects;
+	AssetViewUtils::FLoadAssetsSettings Settings;
+	Settings.bFollowRedirectors = false;
+	Settings.bAllowCancel = true;
+
+	AssetViewUtils::ELoadAssetsResult Result = AssetViewUtils::LoadAssetsIfNeeded(ObjectPaths, Objects, Settings);
+
+	if (Result != AssetViewUtils::ELoadAssetsResult::Cancelled)
+	{
+		// Transform Objects array to ObjectRedirectors array
+		TArray<UObjectRedirector*> Redirectors;
+		for (UObject* Object : Objects)
+		{
+			Redirectors.Add(CastChecked<UObjectRedirector>(Object));
+		}
+
+		// Load the asset tools module
+		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
+		AssetToolsModule.Get().FixupReferencers(Redirectors);
+	}
+}
+
+
 
 #pragma endregion
 

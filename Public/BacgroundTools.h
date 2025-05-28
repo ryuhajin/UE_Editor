@@ -27,7 +27,13 @@ private:
 
 	void AddCBMenuEntry(FMenuBuilder& MenuBuilder);
 
+	bool FolderHasAnyAssets(const FString& FolderPath);
+
 	void OnDeleteUnsuedAssetButtonClicked();
+
+	void OnDeleteEmptyFoldersButtonClicked();
+	
+	void FixUpRedirectors();
 
 #pragma endregion
 };
