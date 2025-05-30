@@ -13,8 +13,10 @@
 
 void FBacgroundToolsModule::StartupModule()
 {
-	InitCBMenuExtention();
 	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
+	InitCBMenuExtention();
+
+	RegisterAdvanceDeletionTab();
 }
 
 #pragma region ContentBrowserMenuExtention
@@ -73,31 +75,14 @@ void FBacgroundToolsModule::AddCBMenuEntry(FMenuBuilder& MenuBuilder)
 		FSlateIcon(),
 		FExecuteAction::CreateRaw(this, &FBacgroundToolsModule::OnDeleteEmptyFoldersButtonClicked)
 	);
-}
 
-bool FBacgroundToolsModule::FolderHasAnyAssets(const FString& FolderPath)
-{
-	Debug::PrintLog(TEXT("Folder ") + FolderPath);
-
-	if (UEditorAssetLibrary::DoesDirectoryHaveAssets(FolderPath))
-	{
-		Debug::PrintLog(TEXT("HaveAssets ") + FolderPath);
-		return (true);
-	}
-
-
-	TArray<FString> MapFiles;
-	const FString PhysicalPath = FPackageName::LongPackageNameToFilename(FolderPath);
-	IFileManager::Get().FindFilesRecursive(MapFiles, *PhysicalPath, TEXT("*.umap"), true, false);
-
-	if (MapFiles.Num() > 0)
-	{
-		Debug::PrintLog(TEXT("Mapfiles ") + FolderPath);
-		return (true);
-	}
-
-	Debug::PrintLog(TEXT("*** False ") + FolderPath);
-	return (false);
+	MenuBuilder.AddMenuEntry
+	(
+		FText::FromString(TEXT("Advanced Deletion")), // title
+		FText::FromString(TEXT("List assets by specific condition in a tab for deleting")), // tooltip
+		FSlateIcon(),
+		FExecuteAction::CreateRaw(this, &FBacgroundToolsModule::OnAdvancedDeletionButtonClicked)
+	);
 }
 
 void FBacgroundToolsModule::OnDeleteUnsuedAssetButtonClicked()
@@ -217,6 +202,11 @@ void FBacgroundToolsModule::OnDeleteEmptyFoldersButtonClicked()
 
 }
 
+void FBacgroundToolsModule::OnAdvancedDeletionButtonClicked()
+{
+	FGlobalTabmanager::Get()->TryInvokeTab(FName("AdvanceDeletion"));
+}
+
 void FBacgroundToolsModule::FixUpRedirectors()
 {
 	IAssetRegistry& AssetRegistry =
@@ -260,7 +250,21 @@ void FBacgroundToolsModule::FixUpRedirectors()
 	}
 }
 
+#pragma endregion
 
+#pragma region CustomEditorTab
+
+void FBacgroundToolsModule::RegisterAdvanceDeletionTab()
+{
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FName("AdvanceDeletion"),
+		FOnSpawnTab::CreateRaw(this, &FBacgroundToolsModule::OnSpawnAdvanceDeletionTab))
+		.SetDisplayName(FText::FromString(TEXT("Advance Deletion")));
+}
+
+TSharedRef<SDockTab> FBacgroundToolsModule::OnSpawnAdvanceDeletionTab(const FSpawnTabArgs& SpawnTabArgs)
+{
+	return (SNew(SDockTab).TabRole(ETabRole::NomadTab));
+}
 
 #pragma endregion
 

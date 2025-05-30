@@ -27,13 +27,22 @@ private:
 
 	void AddCBMenuEntry(FMenuBuilder& MenuBuilder);
 
-	bool FolderHasAnyAssets(const FString& FolderPath);
-
 	void OnDeleteUnsuedAssetButtonClicked();
 
 	void OnDeleteEmptyFoldersButtonClicked();
+
+	void OnAdvancedDeletionButtonClicked();
 	
 	void FixUpRedirectors();
 
 #pragma endregion
+
+#pragma region CustomEditorTab
+
+	void RegisterAdvanceDeletionTab();
+
+	TSharedRef<SDockTab> OnSpawnAdvanceDeletionTab(const FSpawnTabArgs& SpawnTabArgs);
+
+#pragma endregion
+
 };
