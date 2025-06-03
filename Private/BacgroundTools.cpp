@@ -8,6 +8,7 @@
 #include "AssetToolsModule.h"
 #include "AssetViewUtils.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "SlateWidgets/AdvanceDeletionWidget.h"
 
 #define LOCTEXT_NAMESPACE "FBacgroundToolsModule"
 
@@ -263,7 +264,33 @@ void FBacgroundToolsModule::RegisterAdvanceDeletionTab()
 
 TSharedRef<SDockTab> FBacgroundToolsModule::OnSpawnAdvanceDeletionTab(const FSpawnTabArgs& SpawnTabArgs)
 {
-	return (SNew(SDockTab).TabRole(ETabRole::NomadTab));
+	return
+		SNew(SDockTab).TabRole(ETabRole::NomadTab)
+		[
+			SNew(SAdvanceDeletionTab)
+				.AssetsDataToStore(GetAllAssetData())
+		];
+}
+
+TArray<TSharedPtr<FAssetData>> FBacgroundToolsModule::GetAllAssetData()
+{
+	TArray< TSharedPtr <FAssetData> > AvailableAssetsData;
+
+	TArray<FString> AssetsPathNames = UEditorAssetLibrary::ListAssets(SelectedFolderPaths[0]);
+
+	for (const FString& AssetPathName : AssetsPathNames)
+	{
+		if (AssetPathName.Contains(TEXT("Developers")) || AssetPathName.Contains(TEXT("Collections")))
+			continue;
+		if (!UEditorAssetLibrary::DoesAssetExist(AssetPathName))
+			continue;
+		
+		const FAssetData Data = UEditorAssetLibrary::FindAssetData(AssetPathName);
+
+		AvailableAssetsData.Add(MakeShared<FAssetData>(Data));
+	}
+
+	return AvailableAssetsData;
 }
 
 #pragma endregion
