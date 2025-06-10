@@ -206,7 +206,11 @@ FReply SAdvanceDeletionTab::OnDeleteButtonClicked(TSharedPtr<FAssetData> Clicked
 		}
 
 		// refresh the list
-		RefreshAssetListView();
+		/*RefreshAssetListView();*/
+		if (ConstructedAssetListView.IsValid())
+		{
+			ConstructedAssetListView->RequestListRefresh();
+		}
 	}
 
 	return FReply::Handled();

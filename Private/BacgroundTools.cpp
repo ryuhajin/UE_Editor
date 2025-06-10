@@ -302,7 +302,7 @@ bool FBacgroundToolsModule::DeleteSingleAssetForAssetList(const FAssetData& Asse
 	TArray<FAssetData> AssetDataForDeletion;
 	AssetDataForDeletion.Add(AssetDataToDelete);
 
-	if (ObjectTools::DeleteAssets(AssetDataForDeletion))
+	if (ObjectTools::DeleteAssets(AssetDataForDeletion) > 0)
 	{
 		return (true);
 	}
